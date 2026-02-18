@@ -14,19 +14,19 @@ export default function Page() {
 
   return (
     <View style={styles.container}>
-      <Text>Welcome!</Text>
+      <Text>Bienvenue!</Text>
       {/* Show the sign-in and sign-up buttons when the user is signed out */}
       <SignedOut>
         <Link href="/(auth)/sign-in">
-          <Text >Sign in</Text>
+          <Text >Se connecter</Text>
         </Link>
         <Link href="/(auth)/sign-up">
-          <Text>Sign up</Text>
+          <Text>Inscription</Text>
         </Link>
       </SignedOut>
       {/* Show the sign-out button when the user is signed in */}
       <SignedIn>
-        <Text>Hello {user?.emailAddresses[0].emailAddress}</Text>
+        <Text>Bonjour {user?.emailAddresses[0].emailAddress}</Text>
         <SignOutButton />
       </SignedIn>
     </View>
