@@ -37,7 +37,8 @@ export default function Page() {
               return
             }
 
-            router.replace('/')
+            router.replace("/(main)");
+
           },
         })
       } else if (signInAttempt.status === 'needs_second_factor') {
@@ -89,7 +90,7 @@ export default function Page() {
               return
             }
 
-            router.replace('/')
+            router.replace("/(main)");
           },
         })
       } else {
@@ -131,23 +132,23 @@ export default function Page() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>
-        Sign in
+        Connexion
       </Text>
-      <Text style={styles.label}>Email address</Text>
+      <Text style={styles.label}>Adresse e-mail</Text>
       <TextInput
         style={styles.input}
         autoCapitalize="none"
         value={emailAddress}
-        placeholder="Enter email"
+        placeholder="Entrer votre adresse e-mail"
         placeholderTextColor="#666666"
         onChangeText={(emailAddress) => setEmailAddress(emailAddress)}
         keyboardType="email-address"
       />
-      <Text style={styles.label}>Password</Text>
+      <Text style={styles.label}>Mot de passe</Text>
       <TextInput
         style={styles.input}
         value={password}
-        placeholder="Enter password"
+        placeholder="Entrer votre mot de passe"
         placeholderTextColor="#666666"
         secureTextEntry={true}
         onChangeText={(password) => setPassword(password)}
@@ -164,9 +165,9 @@ export default function Page() {
         <Text style={styles.buttonText}>Sign in</Text>
       </Pressable>
       <View style={styles.linkContainer}>
-        <Text>Don't have an account? </Text>
-        <Link href="/sign-up">
-          <Text style={styles.buttonText}>Sign up</Text>
+        <Text>Pas encore de compte ? </Text>
+        <Link href="/(auth)/sign-up">
+          <Text style={styles.buttonText}>S'inscrire</Text>
         </Link>
       </View>
     </View>
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   button: {
-    backgroundColor: '#0a7ea4',
+    backgroundColor: '#d8e2e5',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
@@ -214,7 +215,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: '#fff',
+    color: '#353c4c',
     fontWeight: '600',
   },
   linkContainer: {
