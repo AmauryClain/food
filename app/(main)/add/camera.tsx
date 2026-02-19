@@ -1,191 +1,100 @@
-// app/(main)/add/camera.tsx
-import React, { useMemo, useRef, useState } from "react";
-import { CameraType, CameraView, useCameraPermissions } from "expo-camera";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View, Image } from "react-native";
-import { useIsFocused } from "@react-navigation/native";
+import React from "react";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import { useRouter } from "expo-router";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
-type Params = {
-  returnTo?: string;
-  mode?: "scan" | "photo";
-};
-
-type CameraRef = React.ComponentRef<typeof CameraView>;
-
-export default function CameraScreen() {
+export default function CameraScanScreen() {
   const router = useRouter();
-  const isFocused = useIsFocused();
-
-  const { returnTo, mode } = useLocalSearchParams<Params>();
-  const effectiveMode = (mode ?? "scan") as "scan" | "photo";
-
   const [permission, requestPermission] = useCameraPermissions();
-  const [facing, setFacing] = useState<CameraType>("back");
+  const [locked, setLocked] = React.useState(false);
 
-  const cameraRef = useRef<CameraRef>(null);
-  const [scanned, setScanned] = useState(false);
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  React.useEffect(() => {
+    if (!permission) return;
+    if (!permission.granted) requestPermission();
+  }, [permission, requestPermission]);
 
-  const canRenderCamera = useMemo(() => {
-    return isFocused;
-  }, [isFocused]);
-
-  if (!permission) {
-    return <View style={styles.center} />;
-  }
-
-  if (!permission.granted) {
+  if (!permission || !permission.granted) {
     return (
       <View style={styles.center}>
-        <Text style={styles.title}>Caméra</Text>
-        <Text style={styles.muted}>
-          Autorise l’accès à la caméra pour scanner / prendre une photo.
-        </Text>
+        <Text style={styles.title}>Scanner</Text>
+        <Text style={styles.muted}>Autorise la caméra pour scanner un code-barres.</Text>
 
         <Pressable style={styles.btn} onPress={requestPermission}>
-          <Text style={styles.btnTxt}>Autoriser</Text>
+          <Text style={styles.btnText}>Autoriser</Text>
         </Pressable>
 
         <Pressable style={styles.btnGhost} onPress={() => router.back()}>
-          <Text style={styles.btnGhostTxt}>Retour</Text>
+          <Text style={styles.btnGhostText}>Retour</Text>
         </Pressable>
       </View>
     );
   }
 
-  const onBarcodeScanned =
-    effectiveMode === "scan"
-      ? ({ data }: { data: string }) => {
-          if (scanned) return;
-          setScanned(true);
-          if (returnTo) {
-            router.replace({ pathname: returnTo as any, params: { barcode: data } });
-          } else {
-            router.back();
-          }
-        }
-      : undefined;
-
-  const takePhoto = async () => {
-    if (!cameraRef.current) return;
-    const pic = await cameraRef.current.takePictureAsync();
-    setPhotoUri(pic.uri);
-  };
-
-  const usePhoto = () => {
-    if (!photoUri) return;
-    if (returnTo) {
-      router.replace({ pathname: returnTo as any, params: { photoUri } });
-    } else {
-      router.back();
-    }
-  };
-
   return (
-    <View style={styles.container}>
-      {canRenderCamera && (
-        <CameraView
-          ref={cameraRef}
-          style={styles.camera}
-          facing={facing}
-          onBarcodeScanned={onBarcodeScanned}
-        />
-      )}
+    <View style={{ flex: 1 }}>
+      <CameraView
+        style={{ flex: 1 }}
+        onBarcodeScanned={(e) => {
+          if (locked) return;
+          const code = e.data?.trim();
+          if (!code) return;
 
-      <View style={styles.bar}>
-        <Pressable
-          style={styles.smallBtn}
-          onPress={() => setFacing((f) => (f === "back" ? "front" : "back"))}
-        >
-          <Text style={styles.smallTxt}>↺</Text>
+          setLocked(true);
+          router.replace({ pathname: "/add", params: { barcode: code } });
+        }}
+      />
+
+      <View style={styles.overlay}>
+        <Text style={styles.overlayText}>Scanne un code-barres…</Text>
+        <Pressable style={styles.close} onPress={() => router.back()}>
+          <Text style={styles.closeText}>Fermer</Text>
         </Pressable>
 
-        <Pressable style={styles.bigBtn} onPress={takePhoto}>
-          <Text style={styles.bigTxt}>●</Text>
-        </Pressable>
-
-        <Pressable style={styles.smallBtn} onPress={() => router.back()}>
-          <Text style={styles.smallTxt}>✕</Text>
-        </Pressable>
+        {locked && (
+          <Pressable style={styles.unlock} onPress={() => setLocked(false)}>
+            <Text style={styles.unlockText}>Rescanner</Text>
+          </Pressable>
+        )}
       </View>
-      {photoUri && (
-        <View style={styles.preview}>
-          <Image source={{ uri: photoUri }} style={styles.previewImg} />
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <Pressable style={styles.btn} onPress={usePhoto}>
-              <Text style={styles.btnTxt}>Utiliser</Text>
-            </Pressable>
-            <Pressable style={styles.btnGhost} onPress={() => setPhotoUri(null)}>
-              <Text style={styles.btnGhostTxt}>Reprendre</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "black" },
-  camera: { flex: 1 },
-
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 20, gap: 12 },
-  title: { color: "white", fontSize: 26, fontWeight: "900" },
-  muted: { color: "rgba(255,255,255,0.75)", textAlign: "center" },
+  title: { fontSize: 24, fontWeight: "900" },
+  muted: { opacity: 0.7, textAlign: "center" },
 
-  bar: {
+  btn: { backgroundColor: "black", paddingHorizontal: 16, paddingVertical: 12, borderRadius: 14 },
+  btnText: { color: "white", fontWeight: "900" },
+
+  btnGhost: {
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.25)",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
+  },
+  btnGhostText: { fontWeight: "900" },
+
+  overlay: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 30,
-    paddingHorizontal: 18,
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 10,
   },
-  bigBtn: {
-    width: 74,
-    height: 74,
-    borderRadius: 37,
-    backgroundColor: "white",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  bigTxt: { fontSize: 40, color: "black", marginTop: -4 },
-  smallBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  smallTxt: { color: "white", fontSize: 18, fontWeight: "900" },
-
-  btn: {
-    backgroundColor: "white",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+  overlayText: {
+    color: "white",
+    fontWeight: "900",
+    backgroundColor: "rgba(0,0,0,0.45)",
+    padding: 10,
     borderRadius: 14,
   },
-  btnTxt: { color: "black", fontWeight: "900" },
-  btnGhost: {
-    backgroundColor: "rgba(255,255,255,0.12)",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-  },
-  btnGhostTxt: { color: "white", fontWeight: "900" },
+  close: { backgroundColor: "rgba(0,0,0,0.75)", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14 },
+  closeText: { color: "white", fontWeight: "900" },
 
-  preview: {
-    position: "absolute",
-    left: 14,
-    right: 14,
-    top: 60,
-    backgroundColor: "rgba(0,0,0,0.75)",
-    padding: 14,
-    borderRadius: 16,
-    gap: 12,
-  },
-  previewImg: { width: "100%", height: 240, borderRadius: 12 },
+  unlock: { backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14 },
+  unlockText: { color: "white", fontWeight: "900" },
 });

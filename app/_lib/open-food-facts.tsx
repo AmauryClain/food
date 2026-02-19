@@ -1,29 +1,18 @@
-// app/_lib/openFoodFacts.ts
-
 export type OFFProduct = {
   code: string;
   name: string;
   brands?: string;
   image?: string;
-  nutriscore?: string;
+  nutriscore?: string; // a,b,c,d,e
   nutriments?: Record<string, number | string>;
 };
 
-const UA = "FoodApp/1.0 (Expo; RN)";
+const USER_AGENT = "FoodApp/1.0 (Expo; ReactNative)"; // mets le nom que tu veux
 
-const commonHeaders: HeadersInit = {
+const headers: HeadersInit = {
   Accept: "application/json",
-  "User-Agent": UA,
+  "User-Agent": USER_AGENT,
 };
-
-function pickName(p: any) {
-  return (
-    p?.product_name ||
-    p?.product_name_fr ||
-    p?.product_name_en ||
-    "Produit sans nom"
-  );
-}
 
 const FIELDS = [
   "code",
@@ -36,8 +25,19 @@ const FIELDS = [
   "nutriscore_grade",
 ].join(",");
 
-/** API v1 : full-text search */
-export async function searchProducts(term: string, signal?: AbortSignal): Promise<OFFProduct[]> {
+function pickName(p: any) {
+  return (
+    p?.product_name ||
+    p?.product_name_fr ||
+    p?.product_name_en ||
+    "Produit sans nom"
+  );
+}
+
+export async function searchProducts(
+  term: string,
+  signal?: AbortSignal
+): Promise<OFFProduct[]> {
   const q = term.trim();
   if (q.length < 2) return [];
 
@@ -48,7 +48,7 @@ export async function searchProducts(term: string, signal?: AbortSignal): Promis
     `&fields=${encodeURIComponent(FIELDS)}` +
     `&page_size=20`;
 
-  const res = await fetch(url, { signal, headers: commonHeaders });
+  const res = await fetch(url, { signal, headers });
   if (!res.ok) return [];
 
   const json = await res.json();
@@ -66,8 +66,11 @@ export async function searchProducts(term: string, signal?: AbortSignal): Promis
     }));
 }
 
-/** API v2 : product by barcode */
-export async function getProductByBarcode(barcode: string, signal?: AbortSignal): Promise<OFFProduct | null> {
+
+export async function getProductByBarcode(
+  barcode: string,
+  signal?: AbortSignal
+): Promise<OFFProduct | null> {
   const code = barcode.trim();
   if (!code) return null;
 
@@ -75,7 +78,7 @@ export async function getProductByBarcode(barcode: string, signal?: AbortSignal)
     `https://fr.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json` +
     `?fields=${encodeURIComponent(FIELDS)}`;
 
-  const res = await fetch(url, { signal, headers: commonHeaders });
+  const res = await fetch(url, { signal, headers });
   if (!res.ok) return null;
 
   const json = await res.json();
@@ -92,7 +95,8 @@ export async function getProductByBarcode(barcode: string, signal?: AbortSignal)
   };
 }
 
-export function n(v: unknown) {
-  const num = typeof v === "number" ? v : Number(v);
-  return Number.isFinite(num) ? Math.round(num * 10) / 10 : null;
+export function formatNum(v: unknown) {
+  const n = typeof v === "number" ? v : Number(v);
+  if (!Number.isFinite(n)) return "—";
+  return String(Math.round(n * 10) / 10);
 }
