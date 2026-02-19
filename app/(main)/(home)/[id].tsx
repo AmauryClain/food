@@ -1,24 +1,31 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
-import {
-  getMeals,
-  mealTotalCalories,
-  removeFoodFromMeal,
-  deleteMeal,
-  type Meal,
-} from "../../_lib/meals";
+import { deleteMeal, getMeals, type Meal, type Food } from "../../_lib/meals";
+
+function sum(meal: Meal) {
+  return meal.foods.reduce(
+    (acc, f) => {
+      acc.calories += f.calories || 0;
+      acc.proteins += f.proteins || 0;
+      acc.carbs += f.carbs || 0;
+      acc.fats += f.fats || 0;
+      return acc;
+    },
+    { calories: 0, proteins: 0, carbs: 0, fats: 0 }
+  );
+}
 
 export default function MealDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+
   const [meal, setMeal] = useState<Meal | null>(null);
 
   const load = useCallback(async () => {
     const meals = await getMeals();
-    const found = meals.find((m) => m.id === id) ?? null;
-    setMeal(found);
+    setMeal(meals.find((m) => m.id === id) ?? null);
   }, [id]);
 
   useFocusEffect(
@@ -27,28 +34,24 @@ export default function MealDetailsScreen() {
     }, [load])
   );
 
+  const totals = useMemo(() => (meal ? sum(meal) : null), [meal]);
+
+  const handleDelete = async () => {
+    if (!meal) return;
+    await deleteMeal(meal.id);
+    router.back(); // retour liste
+  };
+
   if (!meal) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Repas introuvable</Text>
         <Pressable onPress={() => router.back()}>
           <Text style={styles.link}>← Retour</Text>
         </Pressable>
+        <Text style={styles.title}>Repas introuvable</Text>
       </View>
     );
   }
-
-  const total = Math.round(mealTotalCalories(meal));
-
-  const onRemoveFood = async (foodId: string) => {
-    await removeFoodFromMeal(meal.id, foodId);
-    await load();
-  };
-
-  const onDeleteMeal = async () => {
-    await deleteMeal(meal.id);
-    router.back();
-  };
 
   return (
     <View style={styles.container}>
@@ -58,16 +61,20 @@ export default function MealDetailsScreen() {
 
       <Text style={styles.title}>{meal.name}</Text>
       <Text style={styles.muted}>{meal.date}</Text>
-      <Text style={styles.kcal}>{total} kcal</Text>
 
-      <View style={styles.actions}>
-        <Pressable style={styles.btn} onPress={() => router.push("/add")}>
-          <Text style={styles.btnText}>Ajouter un aliment</Text>
-        </Pressable>
-        <Pressable style={styles.btnDanger} onPress={onDeleteMeal}>
-          <Text style={styles.btnText}>Supprimer le repas</Text>
-        </Pressable>
+      {/* Totaux nutritionnels */}
+      <View style={styles.totalCard}>
+        <Text style={styles.section}>Total du repas</Text>
+        <Row label="Calories" value={`${Math.round(totals!.calories)} kcal`} />
+        <Row label="Protéines" value={`${Math.round(totals!.proteins * 10) / 10} g`} />
+        <Row label="Glucides" value={`${Math.round(totals!.carbs * 10) / 10} g`} />
+        <Row label="Lipides" value={`${Math.round(totals!.fats * 10) / 10} g`} />
       </View>
+
+      {/* Bouton supprimer */}
+      <Pressable style={styles.deleteBtn} onPress={handleDelete}>
+        <Text style={styles.deleteText}>Supprimer le repas</Text>
+      </Pressable>
 
       <Text style={styles.section}>Aliments</Text>
 
@@ -75,21 +82,41 @@ export default function MealDetailsScreen() {
         data={meal.foods}
         keyExtractor={(f) => f.id}
         contentContainerStyle={{ paddingBottom: 24 }}
-        ListEmptyComponent={<Text style={styles.muted}>Aucun aliment dans ce repas.</Text>}
-        renderItem={({ item }) => (
-          <View style={styles.foodRow}>
-            {!!item.image_url && <Image source={{ uri: item.image_url }} style={styles.img} />}
-            <View style={{ flex: 1 }}>
-              <Text style={styles.foodTitle} numberOfLines={2}>{item.name}</Text>
-              <Text style={styles.mutedSmall}>{item.brand || "—"} • Nutri {item.nutriscore?.toUpperCase() || "—"}</Text>
-              <Text style={styles.mutedSmall}>{Math.round(item.calories)} kcal / 100g</Text>
-            </View>
-            <Pressable style={styles.xBtn} onPress={() => onRemoveFood(item.id)}>
-              <Text style={styles.xTxt}>✕</Text>
-            </Pressable>
-          </View>
-        )}
+        ListEmptyComponent={<Text style={styles.muted}>Aucun aliment.</Text>}
+        renderItem={({ item }) => <FoodRow item={item} />}
       />
+    </View>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.row}>
+      <Text style={styles.muted}>{label}</Text>
+      <Text style={styles.value}>{value}</Text>
+    </View>
+  );
+}
+
+function FoodRow({ item }: { item: Food }) {
+  return (
+    <View style={styles.foodCard}>
+      {!!item.image_url && <Image source={{ uri: item.image_url }} style={styles.img} />}
+      <View style={{ flex: 1 }}>
+        <Text style={styles.foodTitle} numberOfLines={2}>
+          {item.name}
+        </Text>
+        <Text style={styles.mutedSmall} numberOfLines={1}>
+          {item.brand || "—"} • Nutri {item.nutriscore?.toUpperCase() || "—"}
+        </Text>
+
+        <View style={styles.macroRow}>
+          <Text style={styles.macro}>🔥 {Math.round(item.calories)} kcal</Text>
+          <Text style={styles.macro}>💪 {Math.round(item.proteins * 10) / 10}g</Text>
+          <Text style={styles.macro}>🍞 {Math.round(item.carbs * 10) / 10}g</Text>
+          <Text style={styles.macro}>🥑 {Math.round(item.fats * 10) / 10}g</Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -99,16 +126,30 @@ const styles = StyleSheet.create({
   title: { fontSize: 26, fontWeight: "900" },
   link: { fontWeight: "900" },
   muted: { opacity: 0.7 },
-  kcal: { fontWeight: "900", marginTop: 4 },
+  mutedSmall: { opacity: 0.65, fontSize: 12 },
 
-  section: { marginTop: 10, fontWeight: "900" },
+  section: { fontWeight: "900", marginTop: 10 },
 
-  actions: { flexDirection: "row", gap: 10, marginTop: 6 },
-  btn: { flex: 1, backgroundColor: "black", paddingVertical: 12, borderRadius: 14, alignItems: "center" },
-  btnDanger: { flex: 1, backgroundColor: "#b00020", paddingVertical: 12, borderRadius: 14, alignItems: "center" },
-  btnText: { color: "white", fontWeight: "900" },
+  totalCard: {
+    backgroundColor: "rgba(0,0,0,0.04)",
+    borderRadius: 16,
+    padding: 12,
+    gap: 8,
+    marginTop: 6,
+  },
+  row: { flexDirection: "row", justifyContent: "space-between" },
+  value: { fontWeight: "900" },
 
-  foodRow: {
+  deleteBtn: {
+    marginTop: 8,
+    backgroundColor: "#b00020",
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  deleteText: { color: "white", fontWeight: "900" },
+
+  foodCard: {
     flexDirection: "row",
     gap: 12,
     padding: 12,
@@ -119,8 +160,6 @@ const styles = StyleSheet.create({
   },
   img: { width: 54, height: 54, borderRadius: 12, backgroundColor: "rgba(0,0,0,0.08)" },
   foodTitle: { fontWeight: "900" },
-  mutedSmall: { opacity: 0.65, fontSize: 12 },
-
-  xBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(0,0,0,0.1)", alignItems: "center", justifyContent: "center" },
-  xTxt: { fontWeight: "900" },
+  macroRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 6 },
+  macro: { fontSize: 12, opacity: 0.8, fontWeight: "700" },
 });
