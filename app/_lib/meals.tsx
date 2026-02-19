@@ -29,21 +29,12 @@ function toNum(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function pickName(p: any) {
-  return (
-    p?.product_name ||
-    p?.product_name_fr ||
-    p?.product_name_en ||
-    "Produit sans nom"
-  );
-}
-
-
 export function foodFromOFF(p: OFFProduct): Food {
   const n = p.nutriments ?? {};
+
   return {
     id: p.code,
-    name: pickName(p as any) || p.name,
+    name: p.name || "Produit sans nom",
     brand: p.brands ?? "",
     image_url: p.image ?? "",
     nutriscore: (p.nutriscore ?? "").toString(),
