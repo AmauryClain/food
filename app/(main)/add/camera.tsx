@@ -2,11 +2,30 @@ import React from "react";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { setPendingBarcode } from "../../_lib/pending-scan";
 
 export default function CameraScanScreen() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [locked, setLocked] = React.useState(false);
+
+  const handleScanned = React.useCallback(
+    ({ data }: { data: string }) => {
+      if (locked) return;
+
+      const code = data?.trim();
+      if (!code) return;
+
+      setLocked(true);
+
+      // ✅ on passe le code à l'écran précédent sans recréer /add
+      setPendingBarcode(code);
+
+      // ✅ on revient sur l'écran Add EXISTANT (foods conservé)
+      router.back();
+    },
+    [locked, router]
+  );
 
   React.useEffect(() => {
     if (!permission) return;
@@ -34,14 +53,7 @@ export default function CameraScanScreen() {
     <View style={{ flex: 1 }}>
       <CameraView
         style={{ flex: 1 }}
-        onBarcodeScanned={(e) => {
-          if (locked) return;
-          const code = e.data?.trim();
-          if (!code) return;
-
-          setLocked(true);
-          router.replace({ pathname: "/add", params: { barcode: code } });
-        }}
+        onBarcodeScanned={locked ? undefined : handleScanned}
       />
 
       <View style={styles.overlay}>
@@ -49,12 +61,6 @@ export default function CameraScanScreen() {
         <Pressable style={styles.close} onPress={() => router.back()}>
           <Text style={styles.closeText}>Fermer</Text>
         </Pressable>
-
-        {locked && (
-          <Pressable style={styles.unlock} onPress={() => setLocked(false)}>
-            <Text style={styles.unlockText}>Rescanner</Text>
-          </Pressable>
-        )}
       </View>
     </View>
   );
@@ -94,7 +100,4 @@ const styles = StyleSheet.create({
   },
   close: { backgroundColor: "rgba(0,0,0,0.75)", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14 },
   closeText: { color: "white", fontWeight: "900" },
-
-  unlock: { backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14 },
-  unlockText: { color: "white", fontWeight: "900" },
 });

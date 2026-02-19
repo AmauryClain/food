@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import { takePendingBarcode } from "../../_lib/pending-scan";
 import {
   ActivityIndicator,
   FlatList,
@@ -10,7 +12,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 
@@ -22,7 +24,6 @@ const MEAL_TYPES = ["Petit-déjeuner", "Déjeuner", "Dîner", "Snack"] as const;
 
 export default function AddMealScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ barcode?: string }>();
   const tabBarHeight = useBottomTabBarHeight();
 
   const [mealType, setMealType] = useState<(typeof MEAL_TYPES)[number]>("Petit-déjeuner");
@@ -33,8 +34,6 @@ export default function AddMealScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const lastBarcode = useRef<string | null>(null);
-
   const openScanner = () => router.push("/add/camera");
 
   const addFood = useCallback((p: OFFProduct) => {
@@ -44,12 +43,10 @@ export default function AddMealScreen() {
 
   const removeFood = (id: string) => setFoods((prev) => prev.filter((f) => f.id !== id));
 
-  // scan -> fetch -> add
-  useEffect(() => {
-    const bc = params.barcode?.trim();
+  useFocusEffect(
+  useCallback(() => {
+    const bc = takePendingBarcode();
     if (!bc) return;
-    if (lastBarcode.current === bc) return;
-    lastBarcode.current = bc;
 
     const ac = new AbortController();
     setLoading(true);
@@ -58,13 +55,14 @@ export default function AddMealScreen() {
     getProductByBarcode(bc, ac.signal)
       .then((p) => {
         if (!p) return setError("Produit scanné non trouvé dans Open Food Facts.");
-        addFood(p);
+        addFood(p); 
       })
       .catch(() => setError("Erreur pendant le scan."))
       .finally(() => setLoading(false));
 
     return () => ac.abort();
-  }, [params.barcode, addFood]);
+  }, [addFood])
+);
 
   // search debounce
   useEffect(() => {
