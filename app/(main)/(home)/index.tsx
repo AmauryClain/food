@@ -1,42 +1,32 @@
-import { SignOutButton } from '../../_components/sign-out-button'
-import { SignedIn, SignedOut, useSession, useUser } from '@clerk/clerk-expo'
-import { Link } from 'expo-router'
-import { StyleSheet, View, Text } from 'react-native'
+import { Link } from "expo-router";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
-export default function Page() {
-  const { user } = useUser()
-
-  // If your user isn't appearing as signed in,
-  // it's possible they have session tasks to complete.
-  // Learn more: https://clerk.com/docs/guides/configure/session-tasks
-  const { session } = useSession()
-  console.log(session?.currentTask)
+export default function MealsListScreen() {
+  const meals = [
+    { id: "1", title: "Petit-déj" },
+    { id: "2", title: "Déjeuner" },
+  ];
 
   return (
     <View style={styles.container}>
-      <Text>Bienvenue!</Text>
-      {/* Show the sign-in and sign-up buttons when the user is signed out */}
-      <SignedOut>
-        <Link href="/(auth)/sign-in">
-          <Text >Se connecter</Text>
+      <Text style={styles.title}>Mes repas</Text>
+
+      {meals.map((m) => (
+        <Link key={m.id} href={`/(main)/(home)/${m.id}`} asChild>
+          <Pressable style={styles.card}>
+            <Text style={styles.cardTitle}>{m.title}</Text>
+            <Text style={styles.muted}>Voir le détail →</Text>
+          </Pressable>
         </Link>
-        <Link href="/(auth)/sign-up">
-          <Text>Inscription</Text>
-        </Link>
-      </SignedOut>
-      {/* Show the sign-out button when the user is signed in */}
-      <SignedIn>
-        <Text>Bonjour {user?.emailAddresses[0].emailAddress}</Text>
-        <SignOutButton />
-      </SignedIn>
+      ))}
     </View>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    gap: 16,
-  },
-})
+  container: { flex: 1, paddingTop: 60, paddingHorizontal: 16, gap: 12 },
+  title: { fontSize: 26, fontWeight: "900" },
+  card: { padding: 14, borderRadius: 16, backgroundColor: "rgba(0,0,0,0.05)" },
+  cardTitle: { fontWeight: "900", fontSize: 16 },
+  muted: { opacity: 0.7, marginTop: 4 },
+});
