@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 16,
     right: 16,
-    bottom: 92,
+    bottom: 26,
     backgroundColor: COLORS.danger,
     borderRadius: RADIUS.md,
     paddingVertical: 14,

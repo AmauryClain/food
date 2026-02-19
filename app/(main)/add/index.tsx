@@ -106,8 +106,8 @@ export default function AddMealScreen() {
   };
 
   // Bouton collé en bas (au-dessus de la tab bar)
-  const bottomOffset = tabBarHeight + 10;
-  const listBottomPadding = bottomOffset + 60; // place pour le bouton
+  const bottomOffset = tabBarHeight - 40;
+  const listBottomPadding = bottomOffset + 60;
 
   return (
     <View style={styles.screen}>
