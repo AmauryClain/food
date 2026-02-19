@@ -1,17 +1,20 @@
 import { useUser } from "@clerk/clerk-expo";
+import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 import SignOutButton from "../_components/sign-out-button";
+import { COLORS, RADIUS, SHADOW } from "../_lib/theme";
 
 export default function ProfileScreen() {
   const { user } = useUser();
+  const email = user?.primaryEmailAddress?.emailAddress ?? "—";
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Profil</Text>
-
       <View style={styles.card}>
-        <Text style={styles.label}>Email</Text>
-        <Text style={styles.value}>{user?.primaryEmailAddress?.emailAddress ?? "—"}</Text>
+        <View style={styles.avatar}>
+          <Ionicons name="person" size={28} color={COLORS.primary} />
+        </View>
+        <Text style={styles.email}>{email}</Text>
       </View>
 
       <SignOutButton />
@@ -20,9 +23,23 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 60, paddingHorizontal: 16, gap: 12 },
-  title: { fontSize: 26, fontWeight: "900" },
-  card: { padding: 14, borderRadius: 16, backgroundColor: "rgba(0,0,0,0.05)" },
-  label: { opacity: 0.7 },
-  value: { fontWeight: "900", marginTop: 4 },
+  container: { flex: 1, backgroundColor: COLORS.bg, padding: 16, paddingTop: 24, gap: 14 },
+
+  card: {
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.xl,
+    padding: 18,
+    alignItems: "center",
+    gap: 10,
+    ...SHADOW,
+  },
+  avatar: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: "rgba(60, 181, 74, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  email: { fontWeight: "800", color: COLORS.text },
 });

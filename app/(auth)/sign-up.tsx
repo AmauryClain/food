@@ -1,199 +1,222 @@
-import { useSignUp } from '@clerk/clerk-expo'
-import { Link, useRouter } from 'expo-router'
-import * as React from 'react'
-import { Pressable, StyleSheet, TextInput, View, Text } from 'react-native'
+import { useSignUp } from "@clerk/clerk-expo";
+import { useRouter } from "expo-router";
+import * as React from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { COLORS, RADIUS, SHADOW } from "../_lib/theme";
+
+function prettyClerkError(err: any) {
+  const msg =
+    err?.errors?.[0]?.longMessage ||
+    err?.errors?.[0]?.message ||
+    err?.message ||
+    "Une erreur est survenue";
+  return String(msg);
+}
 
 export default function Page() {
-  const { isLoaded, signUp, setActive } = useSignUp()
-  const router = useRouter()
+  const { isLoaded, signUp, setActive } = useSignUp();
+  const router = useRouter();
 
-  const [emailAddress, setEmailAddress] = React.useState('')
-  const [password, setPassword] = React.useState('')
-  const [pendingVerification, setPendingVerification] = React.useState(false)
-  const [code, setCode] = React.useState('')
+  const [emailAddress, setEmailAddress] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [pendingVerification, setPendingVerification] = React.useState(false);
+  const [code, setCode] = React.useState("");
+  const [error, setError] = React.useState<string | null>(null);
 
-  // Handle submission of sign-up form
   const onSignUpPress = async () => {
-    if (!isLoaded) return
+    if (!isLoaded) return;
+    setError(null);
 
-    // Start sign-up process using email and password provided
     try {
-      await signUp.create({
-        emailAddress,
-        password,
-      })
-
-      // Send user an email with verification code
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
-
-      // Set 'pendingVerification' to true to display second form
-      // and capture code
-      setPendingVerification(true)
+      await signUp.create({ emailAddress, password });
+      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+      setPendingVerification(true);
     } catch (err) {
-      // See https://clerk.com/docs/guides/development/custom-flows/error-handling
-      // for more info on error handling
-      console.error(JSON.stringify(err, null, 2))
+      setError(prettyClerkError(err));
     }
-  }
+  };
 
-  // Handle submission of verification form
   const onVerifyPress = async () => {
-    if (!isLoaded) return
+    if (!isLoaded) return;
+    setError(null);
 
     try {
-      // Use the code the user provided to attempt verification
-      const signUpAttempt = await signUp.attemptEmailAddressVerification({
-        code,
-      })
+      const attempt = await signUp.attemptEmailAddressVerification({ code });
 
-      // If verification was completed, set the session to active
-      // and redirect the user
-      if (signUpAttempt.status === 'complete') {
+      if (attempt.status === "complete") {
         await setActive({
-          session: signUpAttempt.createdSessionId,
+          session: attempt.createdSessionId,
           navigate: async ({ session }) => {
-            if (session?.currentTask) {
-              // Check for tasks and navigate to custom UI to help users resolve them
-              // See https://clerk.com/docs/guides/development/custom-flows/authentication/session-tasks
-              console.log(session?.currentTask)
-              return
-            }
-
+            if (session?.currentTask) return;
             router.replace("/(main)");
           },
-        })
+        });
       } else {
-        // If the status is not complete, check why. User may need to
-        // complete further steps.
-        console.error(JSON.stringify(signUpAttempt, null, 2))
+        setError("Code invalide ou expiré.");
       }
     } catch (err) {
-      // See https://clerk.com/docs/guides/development/custom-flows/error-handling
-      // for more info on error handling
-      console.error(JSON.stringify(err, null, 2))
+      setError(prettyClerkError(err));
     }
+  };
+
+  if (!isLoaded) {
+    return (
+      <View style={[styles.screen, styles.center]}>
+        <ActivityIndicator />
+      </View>
+    );
   }
 
   if (pendingVerification) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.title}>
-          Verify your email
-        </Text>
-        <Text style={styles.description}>
-          A verification code has been sent to your email.
-        </Text>
-        <TextInput
-          style={styles.input}
-          value={code}
-          placeholder="Enter your verification code"
-          placeholderTextColor="#666666"
-          onChangeText={(code) => setCode(code)}
-          keyboardType="numeric"
-        />
-        <Pressable
-          style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
-          onPress={onVerifyPress}
-        >
-          <Text style={styles.buttonText}>Verify</Text>
-        </Pressable>
+      <View style={styles.screen}>
+        <Brand title="NutriTrack" subtitle="Inscription" />
+
+        <View style={styles.card}>
+          <Text style={styles.helperTitle}>Vérification email</Text>
+          <Text style={styles.helperText}>
+            Un code a été envoyé sur ton email. Entre-le ici :
+          </Text>
+
+          {error && <Text style={styles.error}>{error}</Text>}
+
+          <TextInput
+            style={styles.input}
+            value={code}
+            placeholder="Code de vérification"
+            placeholderTextColor="#9CA3AF"
+            onChangeText={setCode}
+            keyboardType="numeric"
+          />
+
+          <Pressable
+            style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
+            onPress={onVerifyPress}
+          >
+            <Text style={styles.primaryBtnText}>Vérifier</Text>
+          </Pressable>
+        </View>
       </View>
-    )
+    );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>
-        Inscription
-      </Text>
-      <Text style={styles.label}>Adresse e-mail</Text>
-      <TextInput
-        style={styles.input}
-        autoCapitalize="none"
-        value={emailAddress}
-        placeholder="Entrer votre adresse e-mail"
-        placeholderTextColor="#666666"
-        onChangeText={(email) => setEmailAddress(email)}
-        keyboardType="email-address"
-      />
-      <Text style={styles.label}>Mot de passe</Text>
-      <TextInput
-        style={styles.input}
-        value={password}
-        placeholder="Entrer votre mot de passe"
-        placeholderTextColor="#666666"
-        secureTextEntry={true}
-        onChangeText={(password) => setPassword(password)}
-      />
-      <Pressable
-        style={({ pressed }) => [
-          styles.button,
-          (!emailAddress || !password) && styles.buttonDisabled,
-          pressed && styles.buttonPressed,
-        ]}
-        onPress={onSignUpPress}
-        disabled={!emailAddress || !password}
-      >
-        <Text style={styles.buttonText}>Inscription</Text>
-      </Pressable>
-      <View style={styles.linkContainer}>
-        <Text>Vous avez déjà un compte ? </Text>
-        <Link href="/(auth)/sign-in">
-          <Text style={styles.buttonText}>Se connecter</Text>
-        </Link>
+    <View style={styles.screen}>
+      <Brand title="NutriTrack" subtitle="Inscription" />
+
+      <View style={styles.card}>
+        {error && <Text style={styles.error}>{error}</Text>}
+
+        <TextInput
+          style={styles.input}
+          autoCapitalize="none"
+          value={emailAddress}
+          placeholder="Email"
+          placeholderTextColor="#9CA3AF"
+          onChangeText={setEmailAddress}
+          keyboardType="email-address"
+        />
+
+        <TextInput
+          style={styles.input}
+          value={password}
+          placeholder="Mot de passe"
+          placeholderTextColor="#9CA3AF"
+          secureTextEntry
+          onChangeText={setPassword}
+        />
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.primaryBtn,
+            (!emailAddress || !password) && styles.disabled,
+            pressed && styles.pressed,
+          ]}
+          onPress={onSignUpPress}
+          disabled={!emailAddress || !password}
+        >
+          <Text style={styles.primaryBtnText}>S&apos;inscrire</Text>
+        </Pressable>
+
+        <View style={styles.linkRow}>
+          <Text style={styles.linkMuted}>Déjà un compte ? </Text>
+          <Pressable onPress={() => router.push("/sign-in")}>
+            <Text style={styles.linkGreen}>Se connecter</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
-  )
+  );
+}
+
+function Brand({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <View style={styles.brand}>
+      <Text style={styles.brandTitle}>{title}</Text>
+      <Text style={styles.brandSubtitle}>{subtitle}</Text>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    padding: 20,
+    backgroundColor: "#fff",
+    paddingHorizontal: 20,
+    paddingTop: 90,
+  },
+  center: { alignItems: "center", justifyContent: "center" },
+
+  brand: { alignItems: "center", marginBottom: 18 },
+  brandTitle: { fontSize: 34, fontWeight: "900", color: COLORS.primary },
+  brandSubtitle: { marginTop: 6, fontWeight: "700", color: "#9CA3AF" },
+
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: RADIUS.xl,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.06)",
+    ...SHADOW,
     gap: 12,
   },
-  title: {
-    marginBottom: 8,
-  },
-  description: {
-    fontSize: 14,
-    marginBottom: 16,
-    opacity: 0.8,
-  },
-  label: {
-    fontWeight: '600',
-    fontSize: 14,
-  },
+
   input: {
+    height: 46,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#fff',
+    borderColor: "rgba(0,0,0,0.08)",
+    paddingHorizontal: 14,
+    fontSize: 15,
+    fontWeight: "700",
+    backgroundColor: "#fff",
   },
-  button: {
-    backgroundColor: '#c6dee6',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8,
+
+  primaryBtn: {
+    height: 48,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
   },
-  buttonPressed: {
-    opacity: 0.7,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    color: '#565d76',
-    fontWeight: '600',
-  },
-  linkContainer: {
-    flexDirection: 'row',
-    gap: 4,
-    marginTop: 12,
-    alignItems: 'center',
-  },
-})
+  primaryBtnText: { color: "white", fontWeight: "900", fontSize: 15 },
+  disabled: { opacity: 0.5 },
+  pressed: { opacity: 0.85 },
+
+  linkRow: { flexDirection: "row", justifyContent: "center", marginTop: 8 },
+  linkMuted: { color: "#9CA3AF", fontWeight: "700" },
+  linkGreen: { color: COLORS.primary, fontWeight: "900" },
+
+  error: { color: "#B00020", fontWeight: "800", marginBottom: 2 },
+
+  helperTitle: { fontWeight: "900", fontSize: 16, color: "#111827" },
+  helperText: { color: "#6B7280", fontWeight: "600" },
+});

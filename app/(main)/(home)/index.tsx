@@ -1,22 +1,15 @@
 import React, { useCallback, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { useRouter } from "expo-router";
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { COLORS, RADIUS, SHADOW } from "../../_lib/theme";
 import { getMeals, mealTotalCalories, type Meal } from "../../_lib/meals";
 
 export default function MealsListScreen() {
   const router = useRouter();
   const [meals, setMeals] = useState<Meal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -31,89 +24,91 @@ export default function MealsListScreen() {
     }, [load])
   );
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  }, [load]);
-
-  const openMeal = (id: string) => router.push(`/(main)/(home)/${id}`);
   const goAdd = () => router.push("/add");
+  const openMeal = (id: string) => router.push(`/(main)/(home)/${id}`);
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator />
+        <Text style={styles.muted}>Chargement…</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerRow}>
-        <Text style={styles.title}>Mes repas</Text>
-        <Pressable style={styles.addBtn} onPress={goAdd}>
-          <Text style={styles.addBtnText}>+ Ajouter</Text>
-        </Pressable>
-      </View>
-
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator />
-          <Text style={styles.muted}>Chargement…</Text>
-        </View>
-      ) : meals.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.muted}>Aucun repas enregistré.</Text>
-          <Pressable style={styles.primaryBtn} onPress={goAdd}>
-            <Text style={styles.primaryBtnText}>Ajouter un repas</Text>
-          </Pressable>
+      {meals.length === 0 ? (
+        <View style={styles.empty}>
+          <Ionicons name="restaurant-outline" size={60} color="#D1D5DB" />
+          <Text style={styles.emptyTitle}>Aucun repas enregistré</Text>
+          <Text style={styles.emptySub}>Commencez par ajouter un repas !</Text>
         </View>
       ) : (
         <FlatList
           data={meals}
           keyExtractor={(m) => m.id}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          contentContainerStyle={{ paddingBottom: 24 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
           renderItem={({ item }) => {
             const total = Math.round(mealTotalCalories(item));
             return (
               <Pressable style={styles.card} onPress={() => openMeal(item.id)}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.cardTitle}>{item.name}</Text>
-                  <Text style={styles.muted}>{item.date}</Text>
+                  <Text style={styles.cardSub}>{item.date}</Text>
                 </View>
-                <View style={styles.right}>
+                <View style={styles.cardRight}>
                   <Text style={styles.kcal}>{total} kcal</Text>
-                  <Text style={styles.mutedSmall}>{item.foods.length} aliments</Text>
+                  <Text style={styles.cardSub}>{item.foods.length} aliments</Text>
                 </View>
               </Pressable>
             );
           }}
         />
       )}
+
+      {/* FAB + */}
+      <Pressable style={styles.fab} onPress={goAdd}>
+        <Ionicons name="add" size={26} color="white" />
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 60, paddingHorizontal: 16, gap: 12 },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  title: { fontSize: 26, fontWeight: "900" },
+  container: { flex: 1, backgroundColor: COLORS.bg },
 
-  addBtn: { backgroundColor: "black", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14 },
-  addBtnText: { color: "white", fontWeight: "900" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: COLORS.bg },
+  muted: { color: COLORS.muted, fontWeight: "600" },
 
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
-
-  primaryBtn: { backgroundColor: "black", paddingHorizontal: 16, paddingVertical: 12, borderRadius: 14, marginTop: 10 },
-  primaryBtnText: { color: "white", fontWeight: "900" },
+  empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6 },
+  emptyTitle: { fontWeight: "900", color: COLORS.muted, marginTop: 8 },
+  emptySub: { color: "#9CA3AF", fontWeight: "600" },
 
   card: {
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.lg,
+    padding: 16,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    padding: 14,
-    borderRadius: 16,
-    backgroundColor: "rgba(0,0,0,0.05)",
-    marginTop: 10,
+    marginBottom: 12,
+    ...SHADOW,
   },
-  cardTitle: { fontWeight: "900", fontSize: 16 },
-  muted: { opacity: 0.7 },
-  mutedSmall: { opacity: 0.6, fontSize: 12, marginTop: 2 },
+  cardTitle: { fontWeight: "900", fontSize: 16, color: COLORS.text },
+  cardSub: { color: "#9CA3AF", fontWeight: "600", marginTop: 4, fontSize: 12 },
+  cardRight: { alignItems: "flex-end" },
+  kcal: { fontWeight: "900", color: COLORS.primary },
 
-  right: { alignItems: "flex-end" },
-  kcal: { fontWeight: "900" },
+  fab: {
+    position: "absolute",
+    right: 20,
+    bottom: 92,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    ...SHADOW,
+  },
 });
