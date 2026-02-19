@@ -143,7 +143,6 @@ const styles = StyleSheet.create({
   badgesRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 10 },
   badge: {
     width: "48%",
-    minWidth: 150,
     borderWidth: 1.6,
     borderRadius: 12,
     paddingVertical: 8,
