@@ -1,4 +1,4 @@
-import { SignOutButton } from '../../components/sign-out-button'
+import { SignOutButton } from '../../_components/sign-out-button'
 import { SignedIn, SignedOut, useSession, useUser } from '@clerk/clerk-expo'
 import { Link } from 'expo-router'
 import { StyleSheet, View, Text } from 'react-native'
