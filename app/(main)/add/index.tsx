@@ -4,6 +4,7 @@ import {
   FlatList,
   Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -11,6 +12,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 
 import { searchProducts, getProductByBarcode, type OFFProduct } from "../../_lib/open-food-facts";
 import { addMeal, foodFromOFF, type Food } from "../../_lib/meals";
@@ -21,6 +23,7 @@ const MEAL_TYPES = ["Petit-déjeuner", "Déjeuner", "Dîner", "Snack"] as const;
 export default function AddMealScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ barcode?: string }>();
+  const tabBarHeight = useBottomTabBarHeight();
 
   const [mealType, setMealType] = useState<(typeof MEAL_TYPES)[number]>("Petit-déjeuner");
   const [foods, setFoods] = useState<Food[]>([]);
@@ -63,7 +66,7 @@ export default function AddMealScreen() {
     return () => ac.abort();
   }, [params.barcode, addFood]);
 
-  // search debounce >= 400ms
+  // search debounce
   useEffect(() => {
     const query = q.trim();
     const ac = new AbortController();
@@ -101,6 +104,10 @@ export default function AddMealScreen() {
       setLoading(false);
     }
   };
+
+  // Bouton collé en bas (au-dessus de la tab bar)
+  const bottomOffset = tabBarHeight + 10;
+  const listBottomPadding = bottomOffset + 60; // place pour le bouton
 
   return (
     <View style={styles.screen}>
@@ -141,42 +148,59 @@ export default function AddMealScreen() {
       </View>
 
       {!!error && <Text style={styles.error}>{error}</Text>}
-      {loading && <View style={{ paddingVertical: 8 }}><ActivityIndicator /></View>}
+      {loading && (
+        <View style={{ paddingVertical: 8 }}>
+          <ActivityIndicator />
+        </View>
+      )}
 
-      {/* Aliments ajoutés */}
+      {/* Aliments ajoutés - hauteur limitée + scroll interne */}
       {foods.length > 0 && (
         <>
-          <Text style={[styles.label, { marginTop: 12 }]}>Aliments ajoutés ({foods.length})</Text>
-          <View style={{ gap: 10 }}>
-            {foods.map((f) => (
-              <View key={f.id} style={styles.addedCard}>
-                {!!f.image_url && <Image source={{ uri: f.image_url }} style={styles.addedImg} />}
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.addedTitle} numberOfLines={1}>{f.name}</Text>
-                  <Text style={styles.addedSub} numberOfLines={1}>
-                    {f.brand || "—"} — {Math.round(f.calories)} kcal
-                  </Text>
+          <Text style={[styles.label, { marginTop: 12 }]}>
+            Aliments ajoutés ({foods.length})
+          </Text>
+
+          <View style={styles.addedListBox}>
+            <ScrollView
+              nestedScrollEnabled
+              showsVerticalScrollIndicator
+              contentContainerStyle={{ gap: 10, paddingRight: 2 }}
+            >
+              {foods.map((f) => (
+                <View key={f.id} style={styles.addedCard}>
+                  {!!f.image_url && <Image source={{ uri: f.image_url }} style={styles.addedImg} />}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.addedTitle} numberOfLines={1}>
+                      {f.name}
+                    </Text>
+                    <Text style={styles.addedSub} numberOfLines={1}>
+                      {f.brand || "—"} — {Math.round(f.calories)} kcal
+                    </Text>
+                  </View>
+                  <Pressable style={styles.removeCircle} onPress={() => removeFood(f.id)}>
+                    <Ionicons name="close" size={16} color="white" />
+                  </Pressable>
                 </View>
-                <Pressable style={styles.removeCircle} onPress={() => removeFood(f.id)}>
-                  <Ionicons name="close" size={16} color="white" />
-                </Pressable>
-              </View>
-            ))}
+              ))}
+            </ScrollView>
           </View>
         </>
       )}
 
-      {/* Résultats */}
+      {/* Résultats - prend le reste de l'écran */}
       <FlatList
         data={results}
         keyExtractor={(it) => it.code}
-        contentContainerStyle={{ paddingBottom: 120 }}
-        style={{ marginTop: 10 }}
+        style={{ flex: 1, marginTop: 10 }}
+        contentContainerStyle={{ paddingBottom: listBottomPadding }}
         renderItem={({ item }) => (
           <Pressable style={styles.resultCard} onPress={() => addFood(item)}>
             {!!item.image && <Image source={{ uri: item.image }} style={styles.resultImg} />}
             <View style={{ flex: 1 }}>
-              <Text style={styles.resultTitle} numberOfLines={1}>{item.name}</Text>
+              <Text style={styles.resultTitle} numberOfLines={1}>
+                {item.name}
+              </Text>
               <Text style={styles.resultSub} numberOfLines={1}>
                 {item.brands || "—"}
               </Text>
@@ -187,11 +211,21 @@ export default function AddMealScreen() {
           </Pressable>
         )}
         ListEmptyComponent={
-          q.trim().length >= 2 && !loading ? <Text style={styles.emptyRes}>Aucun résultat</Text> : null
+          q.trim().length >= 2 && !loading ? (
+            <Text style={styles.emptyRes}>Aucun résultat</Text>
+          ) : null
         }
       />
 
-      <Pressable style={[styles.validateBtn, (!foods.length || loading) && { opacity: 0.5 }]} onPress={validate} disabled={!foods.length || loading}>
+      <Pressable
+        style={[
+          styles.validateBtn,
+          { bottom: bottomOffset },
+          (!foods.length || loading) && { opacity: 0.5 },
+        ]}
+        onPress={validate}
+        disabled={!foods.length || loading}
+      >
         <Text style={styles.validateText}>Valider le repas</Text>
       </Pressable>
     </View>
@@ -204,33 +238,106 @@ const styles = StyleSheet.create({
   label: { fontWeight: "900", color: COLORS.text, marginBottom: 8 },
 
   pills: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
-  pill: { backgroundColor: COLORS.card, borderRadius: RADIUS.pill, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: COLORS.border },
+  pill: {
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
   pillActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   pillText: { fontWeight: "800", color: COLORS.text, fontSize: 12 },
   pillTextActive: { color: "white" },
 
   searchRow: { flexDirection: "row", gap: 10, alignItems: "center" },
-  searchBox: { flex: 1, flexDirection: "row", gap: 8, alignItems: "center", backgroundColor: COLORS.card, borderRadius: RADIUS.md, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: COLORS.border },
+  searchBox: {
+    flex: 1,
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
   searchInput: { flex: 1, fontWeight: "700", color: COLORS.text },
 
-  scanBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: COLORS.primary, alignItems: "center", justifyContent: "center", ...SHADOW },
+  scanBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    ...SHADOW,
+  },
 
   error: { color: COLORS.danger, fontWeight: "800", marginTop: 8 },
 
-  addedCard: { backgroundColor: COLORS.card, borderRadius: RADIUS.lg, padding: 12, flexDirection: "row", gap: 12, alignItems: "center", ...SHADOW },
+  // ✅ conteneur hauteur limitée
+  addedListBox: {
+    maxHeight: 210, // <= si tu veux STRICTEMENT fixe : remplace maxHeight par height
+    overflow: "hidden",
+    borderRadius: RADIUS.lg,
+  },
+
+  addedCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.lg,
+    padding: 12,
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
+    ...SHADOW,
+  },
   addedImg: { width: 44, height: 44, borderRadius: 12, backgroundColor: "#F3F4F6" },
   addedTitle: { fontWeight: "900", color: COLORS.text },
   addedSub: { color: "#9CA3AF", fontWeight: "700", fontSize: 12, marginTop: 2 },
-  removeCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.danger, alignItems: "center", justifyContent: "center" },
+  removeCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.danger,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
-  resultCard: { backgroundColor: COLORS.card, borderRadius: RADIUS.lg, padding: 12, flexDirection: "row", gap: 12, alignItems: "center", marginTop: 10, ...SHADOW },
+  resultCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.lg,
+    padding: 12,
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
+    marginTop: 10,
+    ...SHADOW,
+  },
   resultImg: { width: 44, height: 44, borderRadius: 12, backgroundColor: "#F3F4F6" },
   resultTitle: { fontWeight: "900", color: COLORS.text },
   resultSub: { color: "#9CA3AF", fontWeight: "700", fontSize: 12, marginTop: 2 },
-  plusCircle: { width: 26, height: 26, borderRadius: 13, backgroundColor: COLORS.primary, alignItems: "center", justifyContent: "center" },
+  plusCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
   emptyRes: { color: "#9CA3AF", fontWeight: "700", textAlign: "center", marginTop: 16 },
 
-  validateBtn: { position: "absolute", left: 16, right: 16, bottom: 92, backgroundColor: COLORS.primary, borderRadius: RADIUS.md, paddingVertical: 14, alignItems: "center", ...SHADOW },
+  validateBtn: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.md,
+    paddingVertical: 14,
+    alignItems: "center",
+    ...SHADOW,
+  },
   validateText: { color: "white", fontWeight: "900", fontSize: 16 },
 });
